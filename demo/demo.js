@@ -6,7 +6,7 @@ var WsDemo = function() {
     var ws;
     var obj = {
         go: function () {
-            ws = new WebSocket("wss://localhost:5280/ws-xmpp");
+            ws = new WebSocket("ws://localhost:5288/ws-xmpp");
             ws.onerror = function() {
                 $('#connstate').html('ERROR');
             };
