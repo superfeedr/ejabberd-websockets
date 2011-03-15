@@ -17,6 +17,7 @@
 -export([init/2]).
 %% Includes
 -include("ejabberd.hrl").
+-include("jlib.hrl").
 %% record used to keep track of listener state
 -record(state, {sockmod,
 		socket,
@@ -59,7 +60,7 @@ init({SockMod, Socket}, Opts) ->
 	end,
     case SockMod1 of
 	gen_tcp ->
-	    inet:setopts(Socket1, [{packet, raw}, {recbuf, 8192}]);
+	    inet:setopts(Socket1, [{packet, http}, {recbuf, 8192}]);
 	_ ->
 	    ok
     end,
@@ -85,7 +86,95 @@ receive_headers(State) ->
     Socket = State#state.socket,
     Data = SockMod:recv(Socket, 0, 300000),
     ?DEBUG("Data in ~p: headers : ~p",[State, Data]),
-    #state{end_of_request = true,
-           request_handlers = State#state.request_handlers}.
+    case State#state.sockmod of
+        gen_tcp ->
+            NewState = process_header(State, Data),
+            case NewState#state.end_of_request of
+                true ->
+                    ok;
+                _ ->
+                    receive_headers(NewState)
+            end;
+        _ ->
+            case Data of
+                {ok, Binary} ->
+                    ?DEBUG("not gen_tcp ~p~n", [Binary]);
+                Req ->
+                    ?DEBUG("not gen_tcp or ok: ~p~n", [Req]),
+                    ok
+            end
+    end.
 
+process_header(State, Data) ->
+    case Data of
+	{ok, {http_request, Method, Uri, Version}} ->
+            KeepAlive = case Version of
+		{1, 1} ->
+		    true;
+		_ ->
+		    false
+	    end,
+	    Path = case Uri of
+	        {absoluteURI, _Scheme, _Host, _Port, P} -> {abs_path, P};
+	        _ -> Uri
+	    end,
+	    State#state{request_method = Method,
+			request_version = Version,
+			request_path = Path,
+			request_keepalive = KeepAlive};
+        {ok, {http_header, _, 'Connection'=Name, _, Conn}} ->
+	    KeepAlive1 = case jlib:tolower(Conn) of
+			     "keep-alive" ->
+				 true;
+			     "close" ->
+				 false;
+			     _ ->
+				 State#state.request_keepalive
+			 end,
+	    State#state{request_keepalive = KeepAlive1,
+			request_headers=add_header(Name, Conn, State)};
+	{ok, {http_header, _, 'Content-Length'=Name, _, SLen}} ->
+	    case catch list_to_integer(SLen) of
+		Len when is_integer(Len) ->
+		    State#state{request_content_length = Len,
+				request_headers=add_header(Name, SLen, State)};
+		_ ->
+		    State
+	    end;
+	{ok, {http_header, _, 'Host'=Name, _, Host}} ->
+	    State#state{request_host = Host,
+			request_headers=add_header(Name, Host, State)};
+	{ok, {http_header, _, Name, _, Value}} ->
+	    State#state{request_headers=add_header(Name, Value, State)};
+	{ok, http_eoh} when State#state.request_host == undefined ->
+	    ?WARNING_MSG("An HTTP request without 'Host' HTTP header was received.", []),
+	    throw(http_request_no_host_header);
+        {ok, http_eoh} ->
+	    ?DEBUG("(~w) http query: ~w ~s~n",
+		   [State#state.socket,
+		    State#state.request_method,
+		    element(2, State#state.request_path)]),
+            %% Test for web socket
+            case is_websocket_upgrade(State) of
+                true ->
+                    ?DEBUG("Websocket!",[]);
+                _ ->
+                    ?DEBUG("Regular HTTP",[])
+            end;
+        _ ->
+            ?DEBUG("Not expected: ~p~n",[Data]),
+            #state{end_of_request = true,
+                   request_handlers = State#state.request_handlers}
+    end.
 
+add_header(Name, Value, State) ->
+    [{Name, Value} | State#state.request_headers].
+
+is_websocket_upgrade(State) ->
+    Connection = {'Connection', 
+                  "Upgrade"} == lists:keyfind('Connection', 1, 
+                                              State#state.request_headers),
+    Upgrade = {'Upgrade', 
+               "WebSocket"} == lists:keyfind('Upgrade', 1,
+                                             State#state.request_headers),
+    Connection and Upgrade.
