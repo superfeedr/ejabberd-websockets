@@ -28,8 +28,15 @@
 
 process(Path, Req) ->
     ?DEBUG("Request data:~p:", [Path, Req]),
-    {400, [], {xmlelement, "h1", [],
-               [{xmlcdata, "400 Bad Request"}]}}.
+    %% Validate Origin
+    case validate_origin(Req#request.headers) of
+        true ->
+            ?DEBUG("Origin is valid.",[]),
+            "Data";
+        _ ->
+            ?DEBUG("Invalid Origin in Request: ~p~n",[Req]),
+            false
+    end.
 
 
 %%%----------------------------------------------------------------------
@@ -63,3 +70,8 @@ stop(_Host) ->
             {'EXIT', {terminate_child_error, Error}}
     end.
 
+%% Origin validator - Ejabberd configuration should contain a fun
+%% validating the origin for this request handler? Default is to
+%% always validate.
+validate_origin(Headers) ->
+    is_tuple(lists:keyfind("Origin", 1, Headers)).
