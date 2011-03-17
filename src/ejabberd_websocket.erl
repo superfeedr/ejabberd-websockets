@@ -37,7 +37,12 @@
 		end_of_request = false,
                 trail = ""
                }).
-
+-record(wsdatastate, {legacy=true, 
+                      dest, 
+                      ft=undefined,
+                      buffer= <<>>,
+                      partial= <<>> 
+                     }).
 -define(MAXKEY_LENGTH, 4294967295).
 %% Supervisor Start
 start(SockData, Opts) ->
@@ -187,8 +192,18 @@ process_header(State, Data) ->
                     #state{end_of_request = true,
                            request_handlers = State#state.request_handlers}
             end;
+        {error, closed} ->
+            ok; %% client socket closed
         {ok, HData} ->
-            ?DEBUG("websocket data", [HData]),
+            ?DEBUG("websocket data", [HData]),            
+            Out = process_data(State, HData),
+            ?DEBUG("sending ~p~n",[Out]),
+            send_text(State, [0, Out, 255]),
+            %%Len = iolist_size("test"),
+            %%?DEBUG("Sending test data.",[]),
+            %%send_text(State, [255, 
+            %%                  <<Len:64/unsigned-integer>>,
+            %%                  "test"]),
             #state{sockmod = State#state.sockmod,
                    socket = State#state.socket,
                    request_handlers = State#state.request_handlers};
@@ -261,6 +276,65 @@ handshake(State) ->
         D ->
             ?DEBUG("Unexpected Data in handshake:~p~n", [D]),
             false
+    end.
+process_data(_State, DState = #wsdatastate{buffer= <<>>}) -> 
+    DState;
+process_data(State, 
+             DState = #wsdatastate{buffer= <<FrameType:8,Buffer/binary>>, 
+                                   ft=undefined}) ->
+    process_data(State, DState#wsdatastate{buffer=Buffer, 
+                                           ft=FrameType, 
+                                           partial= <<>>});
+%% "Legacy" frames, 0x00...0xFF
+%% or modern closing handshake 0x00{8}
+process_data(State, 
+             DState = #wsdatastate{buffer= <<0,0,0,0,0,0,0,0, Buffer/binary>>, 
+                                   ft=0}) ->
+    process_data(State, DState#wsdatastate{buffer=Buffer, ft=undefined});
+process_data(State, 
+             DState = #wsdatastate{buffer= <<255, Rest/binary>>, ft=0}) ->
+    %% message received in full
+    process_data(State, 
+                 DState#wsdatastate{partial= <<>>, ft=undefined, buffer=Rest});
+
+process_data(State, 
+             DState = #wsdatastate{buffer= <<Byte:8, Rest/binary>>, 
+                                   ft=0, 
+                                   partial=Partial}) ->
+    NewPartial = case Partial of 
+                     <<>> -> <<Byte>>; 
+                     _    -> <<Partial/binary, <<Byte>>/binary>> 
+                 end,
+    process_data(State, DState#wsdatastate{buffer=Rest, partial=NewPartial});
+%% "Modern" frames, starting with 0xFF, followed by 64 bit length
+process_data(State, 
+             DState = #wsdatastate{buffer= <<Len:64/unsigned-integer,
+                                            Buffer/binary>>, 
+                                   ft=255, 
+                                   flen=undefined}) ->
+    BitsLen = Len*8,
+    case Buffer of
+        <<Frame:BitsLen/binary, Rest/binary>> ->            
+            process_data(State, DState#wsdatastate{ft=undefined, 
+                                                   flen=undefined, 
+                                                   buffer=Rest});
+
+        _ ->
+            DState#state{flen=Len, buffer=Buffer}
+    end;
+process_data(State, DState = #wsdatastate{buffer=Buffer, 
+                                          ft=255, 
+                                          flen=Len}) when is_integer(Len) ->
+    BitsLen = Len*8,
+    case Buffer of
+        <<Frame:BitsLen/binary, Rest/binary>> ->            
+            process_data(State, 
+                         DState#wsdatastate{ft=undefined, 
+                                            flen=undefined, 
+                                            buffer=Rest});
+
+        _ ->
+            DState#wsdatastate{flen=Len, buffer=Buffer}
     end.
 process_request(#state{request_method = Method,
                        request_path = {abs_path, Path},
@@ -458,3 +532,34 @@ old_hex_to_integer(Hex) ->
 		(H) when H >= $0, H =< $9 -> H - $0
 	    end,
     lists:foldl(fun(E, Acc) -> Acc*16+DEHEX(E) end, 0, Hex).
+
+%%
+%% Tests
+%%
+-include_lib("eunit/include/eunit.hrl").
+-ifdef(TEST).
+
+websocket_process_data_test() ->
+    %% Test frame arrival.
+    Packets = [<<0,"<tagname>",255>>,
+               <<0,"<startag> ">>,
+               <<"cdata in startag ">>,
+               <<"more cdata </startag>",255>>,
+               <<0,"something about tests",255>>,
+               <<0,"fragment">>],
+    FakeState = #wsdatastate{ legacy=true, 
+                              dest=self(),  %% send to ourselves for testing
+                              ft=undefined,
+                              buffer= <<>>,
+                              partial= <<>> },
+    FinalState = lists:foldl(fun(Packet, State=#wsdatastate{buffer=Buffer}) ->
+                                process_data(State#wsdatastate{buffer= <<Buffer/binary,Packet/binary>>})
+                            end, FakeState, Packets),
+
+    %% and that the fragment is left over
+    <<"fragment">> = FinalState#wsdatastate.partial,
+    <<>>           = FinalState#wsdatastate.buffer,
+    ok.
+
+
+-endif.

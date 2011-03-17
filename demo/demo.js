@@ -23,6 +23,9 @@ var WsDemo = function() {
                                 "</pre>");
             };
         },
+        close: function() {
+            ws.close();
+        },
         send: function(text) {
             ws.send(text);
         }
@@ -33,8 +36,11 @@ $(function() {
     $('#buttonConnect').click(function(event) {
         WsDemo.go();
     });
+    $('#buttonClose').click(function(event) {
+        WsDemo.close();
+    });
     $('#buttonSend').click(function(event) {
-        WsDemo.send($('phrase').value);
-        $('phrase').value='';
+        WsDemo.send($('#phrase').val());
+        $('#phrase').val('');
     });  
 });
