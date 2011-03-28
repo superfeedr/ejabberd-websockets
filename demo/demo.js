@@ -17,6 +17,7 @@ var WsDemo = function() {
                 $('#connstate').html('CLOSED');
             };
             ws.onmessage = function(e) {
+                console.log("Data:");console.log(e.data);
                 $('#msgs').html($('#msgs').html() +
                                 "<pre>"+
                                 e.data +

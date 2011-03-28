@@ -18,7 +18,7 @@
 %% Includes
 -include("ejabberd.hrl").
 -include("jlib.hrl").
--include("ejabberd_http.hrl").
+-include("ejabberd_websocket.hrl").
 %% record used to keep track of listener state
 -record(state, {sockmod,
 		socket,
@@ -36,6 +36,7 @@
 		request_headers = [],
 		end_of_request = false,
                 partial = <<>>,
+                websocket_pid,
                 trail = ""
                }).
 -define(MAXKEY_LENGTH, 4294967295).
@@ -173,10 +174,18 @@ process_header(State, Data) ->
                     %% handle hand shake
                     case handshake(State) of
                         true ->
-                            %% send the state back
-                            #state{sockmod = SockMod,
-                                   socket = Socket,
-                                   request_handlers = State#state.request_handlers};
+                            %% start xmpp sub module
+                            case sub_protocol(State#state.request_headers) of
+                                "xmpp" ->
+                                    %% send the state back
+                                    #state{sockmod = SockMod,
+                                           socket = Socket,
+                                           request_handlers = State#state.request_handlers};
+                                _ ->
+                                    ?DEBUG("Bad sub protocol",[]),
+                                    #state{end_of_request = true,
+                                           request_handlers = State#state.request_handlers} 
+                            end;    
                         _ ->
                             ?DEBUG("Bad Handshake",[]),
                             #state{end_of_request = true,
@@ -196,20 +205,34 @@ process_header(State, Data) ->
                         <<X/binary>> -> 
                             <<X, HData>>
                     end,
-            ?DEBUG("websocket data", [HData]),
-            ?DEBUG("partial data", [PData]),
-            {Out, Partial} = process_data(State, PData),
+            {Out, Partial, Pid} = case process_data(State, PData) of 
+                                      {O, P} -> 
+                                          {O, P, false};
+                                      {Output, Part, ProcId} -> 
+                                          {Output, Part, ProcId};
+                                      Error ->
+                                          {Error, undefined, undefined}
+                                  end,
             ?DEBUG("sending ~p~n",[Out]),
-            send_text(State, [0, Out, 255]),
+            %send_text(State, [0, Out, 255]),
             %%Len = iolist_size("test"),
             %%?DEBUG("Sending test data.",[]),
             %%send_text(State, [255, 
             %%                  <<Len:64/unsigned-integer>>,
             %%                  "test"]),
-            #state{sockmod = State#state.sockmod,
-                   socket = State#state.socket,
-                   partial = Partial,
-                   request_handlers = State#state.request_handlers};
+            case Pid of
+                false ->
+                    #state{sockmod = State#state.sockmod,
+                           socket = State#state.socket,
+                           partial = Partial,                
+                           request_handlers = State#state.request_handlers};
+                _ ->
+                    #state{sockmod = State#state.sockmod,
+                           socket = State#state.socket,
+                           partial = Partial,
+                           websocket_pid = Pid,
+                           request_handlers = State#state.request_handlers}
+            end;
         _ ->
             ?DEBUG("Not expected: ~p~n",[Data]),
             #state{end_of_request = true,
@@ -236,13 +259,8 @@ handshake(State) ->
             ?DEBUG("Handshake data received.",[State#state.request_headers]),
             {_, Host} = lists:keyfind('Host', 1, State#state.request_headers),
             {_, Origin} = lists:keyfind("Origin", 
-                                        1, State#state.request_headers),  
-            SubProto = case lists:keyfind("Sec-Websocket-Protocol", 
-                                          1, 
-                                          State#state.request_headers) of
-                           {_, SubP} -> SubP;
-                           _ -> "xmpp" %% force xmpp for now
-                       end,
+                                        1, State#state.request_headers),
+            SubProto = sub_protocol(State#state.request_headers),
             {_, Key1} = lists:keyfind("Sec-Websocket-Key1", 
                                       1, 
                                       State#state.request_headers),
@@ -281,28 +299,40 @@ handshake(State) ->
             false
     end.
 process_data(State, Data) ->
+    SockMod = State#state.sockmod,
+    Socket = State#state.socket,
+    RequestHeaders = State#state.request_headers,
+    Host = State#state.request_host,
     Path = case State#state.request_path of
                undefined -> ["ws-xmpp"];
                X -> X
            end,
-    Request = #request{method = State#state.request_method,
-                       path = Path,
-                       headers = State#state.request_headers,
-                       data = Data
+    {ok, IPHere} =
+        case SockMod of
+            gen_tcp ->
+                inet:peername(Socket);
+            _ ->
+                SockMod:peername(Socket)
+        end,
+    XFF = proplists:get_value('X-Forwarded-For', RequestHeaders, []),
+    IP = analyze_ip_xff(IPHere, XFF, Host),
+    Request = #wsrequest{method = State#state.request_method,
+                         path = Path,
+                         headers = State#state.request_headers,
+                         data = Data,
+                         fsmref = State#state.websocket_pid,
+                         wsocket = Socket,
+                         wsockmod = SockMod,
+                         ip = IP
                       },
-    case process(State#state.request_handlers, Request) of
-        {Output, Partial} when is_list(Output) or is_binary(Output) ->
-            {Output, Partial};
-        Out ->
-            ?DEBUG("Error handling request: Returned: ~p State: ~p~n", 
-                   [Out, State])
-    end.
+    process(State#state.request_handlers, Request).
+
 process_request(#state{request_method = Method,
                        request_path = {abs_path, Path},
 		       request_handlers = RequestHandlers,
 		       request_headers = RequestHeaders,
-		       sockmod = _SockMod,
-		       socket = _Socket
+		       sockmod = SockMod,
+		       socket = Socket
                       } = State) when Method=:='GET' ->
     case (catch url_decode_q_split(Path)) of
         {'EXIT', _} ->
@@ -311,20 +341,14 @@ process_request(#state{request_method = Method,
             %% Build Request
             LPath = [path_decode(NPE) || NPE <- string:tokens(NPath, 
                                                               "/")],
-            Request = #request{method = Method,
-                               path = LPath,
-                               headers = RequestHeaders
-                              },
-            case process(RequestHandlers, Request) of
-                Output when is_list(Output) or is_binary(Output) ->
-                    Output;
-                _ ->
-                    ?DEBUG("Error handling request: State: ~p~n", 
-                           [State])
-            end;
-        _ ->
-            ?DEBUG("Error",[]),
-            false
+            Request = #wsrequest{method = Method,
+                                 path = LPath,
+                                 headers = RequestHeaders,
+                                 wsocket = Socket,
+                                 wsockmod = SockMod
+                                },
+            ?INFO_MSG("Processing request:~p:~p~n",[Request, State]),
+            process(RequestHandlers, Request)        
     end;
 process_request(State) ->
     ?DEBUG("Not a handshake: ~p~n", [State]),
@@ -334,16 +358,17 @@ process([], _) ->
     false;
 process(RequestHandlers, Request) ->
     [{HandlerPathPrefix, HandlerModule} | HandlersLeft] = RequestHandlers,    
-    case (lists:prefix(HandlerPathPrefix, Request#request.path) or
-          (HandlerPathPrefix==Request#request.path)) of
+    case (lists:prefix(HandlerPathPrefix, Request#wsrequest.path) or
+          (HandlerPathPrefix==Request#wsrequest.path)) of
 	true ->
-            ?DEBUG("~p matches ~p", [Request#request.path, HandlerPathPrefix]),
+            ?DEBUG("~p matches ~p", 
+                   [Request#wsrequest.path, HandlerPathPrefix]),
             %% LocalPath is the path "local to the handler", i.e. if
             %% the handler was registered to handle "/test/" and the
             %% requested path is "/test/foo/bar", the local path is
             %% ["foo", "bar"]
             LocalPath = lists:nthtail(length(HandlerPathPrefix), 
-                                      Request#request.path),
+                                      Request#wsrequest.path),
             HandlerModule:process(LocalPath, Request);            
 	false ->
 	    process(HandlersLeft, Request)
@@ -421,7 +446,37 @@ build_handshake_response(Socket, Host, Origin, Path, SubProto, Sig) ->
      "\r\n",
      <<Sig/binary>>
     ].
-
+sub_protocol(Headers) ->
+    SubProto = case lists:keyfind("Sec-WebSocket-Protocol", 1, Headers) of
+                   {"Sec-WebSocket-Protocol", SubP} -> SubP;
+                   _ -> "xmpp"
+               end,
+    SubProto.
+%% Support for X-Forwarded-From
+analyze_ip_xff(IP, [], _Host) ->
+    IP;
+analyze_ip_xff({IPLast, Port}, XFF, Host) ->
+    [ClientIP | ProxiesIPs] = string:tokens(XFF, ", ")
+	++ [inet_parse:ntoa(IPLast)],
+    TrustedProxies = case ejabberd_config:get_local_option(
+			    {trusted_proxies, Host}) of
+			 undefined -> [];
+			 TPs -> TPs
+		     end,
+    IPClient = case is_ipchain_trusted(ProxiesIPs, TrustedProxies) of
+		   true ->
+		       {ok, IPFirst} = inet_parse:address(ClientIP),
+		       ?DEBUG("The IP ~w was replaced with ~w due to header "
+			      "X-Forwarded-For: ~s", [IPLast, IPFirst, XFF]),
+		       IPFirst;
+		   false ->
+		       IPLast
+	       end,
+    {IPClient, Port}.
+is_ipchain_trusted(_UserIPs, all) ->
+    true;
+is_ipchain_trusted(UserIPs, TrustedIPs) ->
+    [] == UserIPs -- ["127.0.0.1" | TrustedIPs].
 % Code below is taken (with some modifications) from the yaws webserver, which
 % is distributed under the folowing license:
 %

@@ -9,6 +9,8 @@
 
 -define(MOD_WEBSOCKET_VERSION, "0.1").
 -define(TEST,ok).
+-define(PROCNAME_MHB, ejabberd_mod_websocket).
+
 -behaviour(gen_mod).
 
 -export([
@@ -19,8 +21,7 @@
 
 -include("ejabberd.hrl").
 -include("jlib.hrl").
--include("ejabberd_http.hrl").
-
+-include("ejabberd_websocket.hrl").
 -record(wsdatastate, {legacy=true, 
                       ft=undefined,
                       flen,
@@ -34,9 +35,9 @@
 process(Path, Req) ->
     ?DEBUG("Request data:~p:", [Path, Req]),
     %% Validate Origin
-    case validate_origin(Req#request.headers) of
+    case validate_origin(Req#wsrequest.headers) of
         true ->
-            Data = case Req#request.data of
+            Data = case Req#wsrequest.data of
                        [] -> <<>>;
                        X when is_list(X) ->
                            list_to_binary(X);
@@ -48,44 +49,44 @@ process(Path, Req) ->
                                    buffer=Data,
                                    ft=undefined,                             
                                    partial= <<>> },
-            process_data(DState);
+            case process_data(DState) of
+                {<<>>, Part} when is_binary(Part) -> 
+                    {<<>>, Part};
+                {Out, <<>>} when is_binary(Out) ->
+                    IP = Req#wsrequest.ip,
+                    %% websocket frame is finished process request
+                    ejabberd_xmpp_websocket:process_request(
+                      Req#wsrequest.wsockmod,
+                      Req#wsrequest.wsocket,
+                      Req#wsrequest.fsmref, 
+                      Out, 
+                      IP);
+                Error -> Error  %% pass the errors through
+            end;
         _ ->
             ?DEBUG("Invalid Origin in Request: ~p~n",[Req]),
             false
     end.
 
-
 %%%----------------------------------------------------------------------
 %%% BEHAVIOUR CALLBACKS
 %%%----------------------------------------------------------------------
-start(_Host, _Opts) ->
-    WebSocketSupervisor =
-        {ejabberd_websocket_sup,
+start(Host, _Opts) ->
+    Proc = gen_mod:get_module_proc(Host, ?PROCNAME_MHB),
+    ChildSpec =
+        {Proc,
          {ejabberd_tmp_sup, start_link,
-          [ejabberd_websocket_sup, ejabberd_websocket]},
+          [Proc, ejabberd_xmpp_websocket]},
          permanent,
          infinity,
          supervisor,
          [ejabberd_tmp_sup]},
-    case supervisor:start_child(ejabberd_sup, WebSocketSupervisor) of
-        {ok, _Pid} ->
-            ok;
-        {ok, _Pid, _Info} ->
-            ok;
-        {error, {already_started, _PidOther}} ->
-            ok;
-        {error, Error} ->
-            {'EXIT', {start_child_error, Error}}
-    end.
+    supervisor:start_child(ejabberd_sup, ChildSpec).
 
-stop(_Host) ->
-    case supervisor:terminate_child(ejabberd_sup, ejabberd_websocket) of
-        ok ->
-            ok;
-        {error, Error} ->
-            {'EXIT', {terminate_child_error, Error}}
-    end.
-
+stop(Host) ->
+    Proc = gen_mod:get_module_proc(Host, ?PROCNAME_MHB),
+    supervisor:terminate_child(ejabberd_sup, Proc),
+    supervisor:delete_child(ejabberd_sup, Proc).
 %% Origin validator - Ejabberd configuration should contain a fun
 %% validating the origin for this request handler? Default is to
 %% always validate.
@@ -94,6 +95,8 @@ validate_origin([]) ->
 validate_origin(Headers) ->
     is_tuple(lists:keyfind("Origin", 1, Headers)).
 
+process_data(DState = #wsdatastate{buffer=undefined}) -> 
+    {DState#wsdatastate.packet, DState#wsdatastate.partial};
 process_data(DState = #wsdatastate{buffer= <<>>}) -> 
     {DState#wsdatastate.packet, DState#wsdatastate.partial};
 process_data(DState = #wsdatastate{buffer= <<FrameType:8,Buffer/binary>>, 
