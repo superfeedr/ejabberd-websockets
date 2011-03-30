@@ -50,17 +50,12 @@
 		waiting_input = false,
 		shaper_state,
 		shaper_timer,
-		last_receiver,
-		last_poll,
                 websocket_sockmod,
                 websocket_s,
 		websocket_receiver,
 		wait_timer,
-		ctime = 0,
 		timer,
 		pause=0,
-		unprocessed_req_list = [], % list of request that have been delayed for proper reordering: {Request, PID}
-		req_list = [], % list of requests (cache)
 		max_inactivity,
 		max_pause,
 		ip = ?NULL_PEER
@@ -261,22 +256,15 @@ handle_sync_event({send_xml, Packet}, _From, StateName, StateData) ->
                           send_element(StateData, Element)
                   end, Output),
     cancel_timer(StateData#state.wait_timer),
-    ReqList = [#wsr{
-		    key = StateData#state.key,
-		    out = Output
-		   } |
-	       [El || El <- StateData#state.req_list ]
-	      ],
     Reply = ok,
     {reply, Reply, StateName,
      StateData#state{output = [],
 		     websocket_receiver = undefined,
-		     req_list = ReqList,
 		     wait_timer = undefined,
 		     timer = Timer}};
 %% Handle writing to c2s 
 handle_sync_event(#wsr{out=Payload, socket=WSocket, sockmod=WSockmod}, 
-                  _From, StateName, StateData) ->
+                  From, StateName, StateData) ->
     Reply = ok,
     case StateData#state.waiting_input of
         false ->
@@ -321,7 +309,9 @@ handle_sync_event(#wsr{out=Payload, socket=WSocket, sockmod=WSockmod},
                         C2SPid, {xmlstreamelement, El})
               end, Payload),
             {reply, Reply, StateName,
-             StateData#state{websocket_s=WSocket, websocket_sockmod=WSockmod}}
+             StateData#state{websocket_s=WSocket, 
+                             websocket_sockmod=WSockmod,
+                             websocket_receiver=From}}
     end;
 handle_sync_event({stop,close}, _From, _StateName, StateData) ->
     Reply = ok,
@@ -329,7 +319,7 @@ handle_sync_event({stop,close}, _From, _StateName, StateData) ->
 handle_sync_event({stop,stream_closed}, _From, _StateName, StateData) ->
     Reply = ok,
     {stop, normal, Reply, StateData};
-handle_sync_event({stop,Reason}, _From, _StateName, StateData) ->
+handle_sync_event({stop, Reason}, _From, _StateName, StateData) ->
     ?DEBUG("Closing websocket session ~p - Reason: ~p", 
            [StateData#state.id, Reason]),
     Reply = ok,
@@ -366,14 +356,8 @@ handle_info({timeout, WaitTimer, _}, StateName,
 	    Timer = set_inactivity_timer(StateData#state.pause,
 					 StateData#state.max_inactivity),
 	    gen_fsm:reply(StateData#state.websocket_receiver, {ok, empty}),
-	    ReqList = [#wsr{key = StateData#state.key,
-			    out = []
-			   } |
-		       [El || El <- StateData#state.req_list]
-		      ],
 	    {next_state, StateName,
 	     StateData#state{websocket_receiver = undefined,
-			     req_list = ReqList,
 			     wait_timer = undefined,
 			     timer = Timer}};
 	true ->

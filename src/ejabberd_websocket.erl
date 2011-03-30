@@ -224,14 +224,14 @@ process_header(State, Data) ->
                         <<X/binary>> -> 
                             <<X, HData>>
                     end,
-            {Out, Partial, Pid} = case process_data(State, PData) of 
-                                      {O, P} -> 
-                                          {O, P, false};
-                                      {Output, Part, ProcId} -> 
-                                          {Output, Part, ProcId};
-                                      Error ->
-                                          {Error, undefined, undefined}
-                                  end,
+            {_Out, Partial, Pid} = case process_data(State, PData) of 
+                                       {O, P} -> 
+                                           {O, P, false};
+                                       {Output, Part, ProcId} -> 
+                                           {Output, Part, ProcId};
+                                       Error ->
+                                           {Error, undefined, undefined}
+                                   end,
             case Pid of
                 false ->
                     #state{sockmod = State#state.sockmod,
