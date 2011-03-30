@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Websockets With Ejabberd And Strophe</title>
+  <!-- http://dev.w3.org/html5/websockets/#the-websocket-interface -->
+</head>
+<body>
+<h1>Ejabberd strophe demo</h1>
+  <div id="connect">
+     <button id="buttonConnect">Connect</button>
+     State: <span id="connstate" style="font-weight:bold;"></span>
+  </div>
+  <div id='disconnect'>
+    <button id="buttonClose">Disconnect</button>
+  </div>
+  <hr/>
+  <div id="connected">
+    <input id='phrase' type='text'/>
+    <input id='buttonSend' class='button' type='submit' name='connect' value='Send'/>
+  </div>
+  <hr/>
+  <div id="msgs"></div>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.js"></script>
+  <script type="text/javascript">
+    // If googleapis failed, load locally
+    !window.jQuery && document.write(unescape('%3Cscript src="jquery.js"%3E%3C/script%3E'))
+  </script>
+  <script src='strophe.js'></script>
+  <script src='strophedemo.js'></script>
+  </body>
+</html>
