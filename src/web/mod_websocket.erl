@@ -8,7 +8,7 @@
 -author('nathan.zorn@gmail.com').
 
 -define(MOD_WEBSOCKET_VERSION, "0.1").
--define(TEST,ok).
+-define(TEST, ok).
 -define(PROCNAME_MHB, ejabberd_mod_websocket).
 
 -behaviour(gen_mod).
@@ -102,7 +102,6 @@ process_data(DState = #wsdatastate{buffer= <<>>}) ->
 process_data(DState = #wsdatastate{buffer= <<FrameType:8,Buffer/binary>>, 
                                    ft=undefined}) ->
     Buffer0 = << <<FrameType>>/binary, Buffer/binary>>,
-    %Buffer0 = Buffer,
     process_data(DState#wsdatastate{buffer=Buffer0, 
                                     ft=FrameType, 
                                     partial= <<>>});
@@ -115,7 +114,10 @@ process_data(DState = #wsdatastate{buffer= <<0, Buffer/binary>>,
 process_data(DState = #wsdatastate{buffer= <<255, Rest/binary>>}) ->
     %% message received in full
     #wsdatastate {partial=OPartial} = DState,
-    process_data(DState#wsdatastate{partial= <<>>, packet=OPartial, ft=undefined, buffer=Rest});
+    process_data(DState#wsdatastate{partial= <<>>, 
+                                    packet=OPartial, 
+                                    ft=undefined, 
+                                    buffer=Rest});
 process_data(DState = #wsdatastate{buffer= <<Byte:8, Rest/binary>>, 
                                    ft=0,
                                    partial=Partial}) ->
@@ -202,7 +204,6 @@ websocket_process_data_test() ->
     {_,Buffer3} = FinalState2,
     FinalState3 = process_data(FakeState#wsdatastate{buffer= <<Buffer3/binary,Packet3/binary>>}),
     {<<"something about tests">>,<<>>} = FinalState3,
-
     ok.
 
 -endif.

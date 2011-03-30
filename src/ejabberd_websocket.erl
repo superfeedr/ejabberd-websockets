@@ -232,13 +232,6 @@ process_header(State, Data) ->
                                       Error ->
                                           {Error, undefined, undefined}
                                   end,
-            ?DEBUG("sending ~p~n",[Out]),
-            %send_text(State, [0, Out, 255]),
-            %%Len = iolist_size("test"),
-            %%?DEBUG("Sending test data.",[]),
-            %%send_text(State, [255, 
-            %%                  <<Len:64/unsigned-integer>>,
-            %%                  "test"]),
             case Pid of
                 false ->
                     #state{sockmod = State#state.sockmod,
@@ -266,7 +259,6 @@ is_websocket_upgrade(RequestHeaders) ->
                                                             RequestHeaders),
     Upgrade = {'Upgrade', "WebSocket"} == lists:keyfind('Upgrade', 1,
                                                         RequestHeaders),
-
     Connection and Upgrade.
 
 handshake(State) ->
@@ -275,7 +267,7 @@ handshake(State) ->
     Data = SockMod:recv(Socket, 0, 300000),
     case Data of 
         {ok, BinData} ->
-            ?DEBUG("Handshake data received.",[State#state.request_headers]),
+            ?DEBUG("Handshake data received.", [State#state.request_headers]),
             {_, Host} = lists:keyfind('Host', 1, State#state.request_headers),
             {_, Origin} = lists:keyfind("Origin", 
                                         1, State#state.request_headers),

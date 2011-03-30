@@ -74,7 +74,6 @@ start(Host, Sid, Key, IP) ->
             ?ERROR_MSG("~p~n",[Reason]),
             {error, "Cannot start XMPP, Websocket session"}
     end.
-
 start_link(Sid, Key, IP) ->
     gen_fsm:start_link(?MODULE, [Sid, Key, IP], []).
 
@@ -184,13 +183,6 @@ process_request(WSockMod, WSock, FsmRef, Data, IP) ->
 %%----------------------------------------------------------------------
 init([Sid, Key, IP]) ->
     ?DEBUG("started: ~p", [{Sid, Key, IP}]),
-
-    %% Read c2s options from the first ejabberd_c2s configuration in
-    %% the config file listen section
-    %% TODO: We should have different access and shaper values for
-    %% each connector. The default behaviour should be however to use
-    %% the default c2s restrictions if not defined for the current
-    %% connector.
     Opts1 = ejabberd_c2s_config:get_c2s_limits(),
     Opts = [{xml_socket, true} | Opts1],
 
@@ -252,7 +244,6 @@ handle_sync_event({send_xml, Packet}, _From, StateName,
 		  #state{websocket_s = undefined} = StateData) ->
     Output = [Packet | StateData#state.output],
     Reply = ok,
-    ?DEBUG("Data from C2S:~p:~p~n",[Output,StateData]),
     {reply, Reply, StateName, StateData#state{output = Output}};
 handle_sync_event({send_xml, Packet}, _From, StateName, StateData) ->
     Output = [Packet | StateData#state.output],
