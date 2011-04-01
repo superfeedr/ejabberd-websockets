@@ -39,6 +39,7 @@
                          % the session
 -define(NS_CLIENT, "jabber:client").
 -define(NS_STREAM, "http://etherx.jabber.org/streams").
+-define(TEST, 1).
 %%  Erlang Records for state
 -record(wsr, {socket, sockmod, key, out}).
 
@@ -248,10 +249,10 @@ handle_sync_event({send_xml, Packet}, _From, StateName, StateData) ->
 				 StateData#state.max_inactivity),
     lists:foreach(fun ({xmlstreamstart, Name, Attrs}) ->
                           send_element(StateData, 
-                                       {xmlelement, Name, Attrs, []});
-                      ({xmlstreamend, Name, Attrs}) ->
+                                       {xmlstreamstart, Name, Attrs});
+                      ({xmlstreamend, End}) ->
                           send_element(StateData, 
-                                       {xmlelement, Name, Attrs, []});
+                                       {xmlstreamend, End});
                       ({_Name, Element}) ->
                           send_element(StateData, Element)
                   end, Output),
@@ -276,7 +277,7 @@ handle_sync_event(#wsr{out=Payload, socket=WSocket, sockmod=WSockmod},
               fun({xmlstreamend, End}) ->
                       gen_fsm:send_event(
                         C2SPid, {xmlstreamend, End});
-                 ({xmlelement, "stream:stream", Attrs, _}) ->
+                 ({xmlstreamstart, "stream:stream", Attrs}) ->
                       StreamTo = case lists:keyfind("to", 1, Attrs) of
                                      {"to", Ato} ->
                                          case lists:keyfind("version", 
@@ -397,6 +398,11 @@ stream_start(ParsedPayload) ->
             Sid = sha:sha(term_to_binary({now(), make_ref()})),
             Key = "",
             {Host, Sid, Key};
+        {xmlstreamstart, _Name, Attrs} ->
+            {"to",Host} = lists:keyfind("to", 1, Attrs),
+            Sid = sha:sha(term_to_binary({now(), make_ref()})),
+            Key = "",
+            {Host, Sid, Key};
         _ ->
             false
     end.
@@ -405,8 +411,16 @@ validate_request(Data, PayloadSize, MaxStanzaSize) ->
     ?DEBUG("--- incoming data --- ~n~s~n --- END --- ", [Data]),
     case xml_stream:parse_element(Data) of
         {error, Reason} ->
-            ?ERROR_MSG("Bad xml data: ~p~n", [Reason]),
-            {error, bad_request};
+            %% detect stream start and stream end
+            case stream_start_end(Data) of
+                {xmlstreamstart, Name, Attrs} ->
+                    {xmlstreamstart, Name, Attrs};
+                {xmlstreamend, End} ->
+                    {xmlstreamend, End};
+                _ ->
+                    ?ERROR_MSG("Bad xml data: ~p~n", [Reason]),
+                    {error, bad_request}
+            end;
         ParsedData ->
             if PayloadSize =< MaxStanzaSize ->
                     {ok, ParsedData};
@@ -447,3 +461,44 @@ set_inactivity_timer(Pause, _MaxInactivity) when Pause > 0 ->
 %% Otherwise, we apply the max_inactivity value as inactivity timer:
 set_inactivity_timer(_Pause, MaxInactivity) ->
     erlang:start_timer(MaxInactivity, self(), []).
+
+stream_start_end(Data) ->
+    %% find <stream:stream>
+    case re:run(Data, "\<stream\:stream.+\>", []) of
+        {match, _X} ->
+            %% find to and version
+            To = case re:run(Data, 
+                             "to=[\"']?((?:.(?![\"\']?\\s+(?:\\S+)=|[>\"\']))+.)[\"\']?", [{capture,[1]}]) of
+                     {match, [{Start, Finish}]} ->
+                         lists:sublist(Data, Start+1, Finish);
+                     _ ->
+                         undefined
+                 end,
+            Version = case re:run(Data, 
+                            "version=[\"']?((?:.(?![\"\']?\\s+(?:\\S+)=|[>\"\']))+.)[\"\']?", [{capture,[1]}]) of
+                          {match, [{St, Fin}]} ->
+                              lists:sublist(Data, St+1, Fin);
+                          T ->
+                              T
+                      end,
+            {xmlstreamstart, "stream:stream", [{"to", To},
+                                               {"version", Version},
+                                               {"xmlns", ?NS_CLIENT},
+                                               {"xmlns:stream", ?NS_STREAM}]};
+        nomatch ->
+            %% find </stream:stream>
+            case re:run(Data, "^</stream:stream>", [global]) of
+                {match, _Loc} ->
+                    {xmlstreamend, "stream:stream"};
+                nomatch ->
+                    false
+            end
+    end.
+%% Tests
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+stream_start_end_test() ->
+    false = stream_start_end("stream no xml"),
+    {xmlstreamstart, _X, _Y} = stream_start_end("<stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='jabber:client' to='localhost' version='1.0'>"),
+    {xmlstreamend, _Z} = stream_start_end("</stream:stream>").
+-endif.
