@@ -193,7 +193,6 @@ process_header(State, Data) ->
                     %% handle hand shake
                     case handshake(State) of
                         true ->
-                            %% start xmpp sub module
                             case sub_protocol(State#state.request_headers) of
                                 "xmpp" ->
                                     %% send the state back
@@ -216,7 +215,9 @@ process_header(State, Data) ->
                            request_handlers = State#state.request_handlers}
             end;
         {error, closed} ->
-            ok; %% client socket closed
+            ?ERROR_MSG("Socket closed", [State]),
+            #state{end_of_request = true,
+                   request_handlers = State#state.request_handlers};
         {ok, HData} ->
             PData = case State#state.partial of
                         <<>> -> 
@@ -232,6 +233,7 @@ process_header(State, Data) ->
                                        Error ->
                                            {Error, undefined, undefined}
                                    end,
+            ?DEBUG("C2SPid:~p~n",[Pid]),
             case Pid of
                 false ->
                     #state{sockmod = State#state.sockmod,

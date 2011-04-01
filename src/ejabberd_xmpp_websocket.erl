@@ -137,12 +137,12 @@ process_request(WSockMod, WSock, FsmRef, Data, IP) ->
                               #wsr{sockmod=WSockMod, 
                                    socket=WSock, 
                                    out=[ParsedPayload]}),
-                            {<<"session started">>,<<>>,Pid};
+                            {<<"session started">>, <<>>, Pid};
                         S -> 
                             ?ERROR_MSG("Error starting session:~p~n", [S])
                     end;
                 false ->
-                    ?DEBUG("session pid:~p~n",[FsmRef]),
+                    ?DEBUG("session pid:~p~n", [FsmRef]),
                     case FsmRef of
                         false ->
                             ?DEBUG("No session started.",[]);
@@ -155,15 +155,15 @@ process_request(WSockMod, WSock, FsmRef, Data, IP) ->
                                    socket=WSock, 
                                    out=[ParsedPayload]})
                     end,
-                    {Data, <<>>};
+                    {Data, <<>>, FsmRef};
                 _ ->
                     ?ERROR_MSG("Stream Start with no FSM reference: ~p~n",
                                [FsmRef]),
-                    {Data, <<>>}
+                    {Data, <<>>, FsmRef}
             end;
         _ ->
             ?DEBUG("Bad Request: ~p~n", [Data]),
-            {<<"bad request">>, <<>>}
+            {<<"bad request">>, <<>>, FsmRef}
     end.    
 
 %%%----------------------------------------------------------------------
