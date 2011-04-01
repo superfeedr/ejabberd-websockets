@@ -141,20 +141,18 @@ process_request(WSockMod, WSock, FsmRef, Data, IP) ->
                         S -> 
                             ?ERROR_MSG("Error starting session:~p~n", [S])
                     end;
+                {_Host, _Sid, _Key} when (FsmRef =/= false) or 
+                                         (FsmRef =/= undefined) ->
+                    ?DEBUG("Stream restart after c2s started. ~p~n",
+                           [FsmRef]),
+                    send_data(FsmRef, #wsr{sockmod=WSockMod,
+                                           socket=WSock,
+                                           out=[ParsedPayload]}),
+                    {Data, <<>>, FsmRef};
                 false ->
-                    ?DEBUG("session pid:~p~n", [FsmRef]),
-                    case FsmRef of
-                        false ->
-                            ?DEBUG("No session started.",[]);
-                        _ ->
-                            ?DEBUG("Writing data!.",[]),
-                            %% write data to c2s            
-                            gen_fsm:sync_send_all_state_event(
-                              FsmRef, 
-                              #wsr{sockmod=WSockMod, 
-                                   socket=WSock, 
-                                   out=[ParsedPayload]})
-                    end,
+                    send_data(FsmRef, #wsr{sockmod=WSockMod,
+                                           socket=WSock,
+                                           out=[ParsedPayload]}),
                     {Data, <<>>, FsmRef};
                 _ ->
                     ?ERROR_MSG("Stream Start with no FSM reference: ~p~n",
@@ -450,6 +448,16 @@ send_stream_start(C2SPid, Attrs) ->
                 {"xmlns", ?NS_CLIENT},
                 {"version", Version},
                 {"xmlns:stream", ?NS_STREAM}]})
+    end.
+send_data(FsmRef, Req) ->
+    ?DEBUG("session pid:~p~n", [FsmRef]),
+    case FsmRef of
+        false ->
+            ?DEBUG("No session started.",[]);
+        _ ->
+            ?DEBUG("Writing data!.",[]),
+            %% write data to c2s            
+            gen_fsm:sync_send_all_state_event(FsmRef, Req)
     end.
 %% Cancel timer and empty message queue.
 cancel_timer(undefined) ->
