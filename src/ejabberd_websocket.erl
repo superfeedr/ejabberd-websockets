@@ -216,6 +216,7 @@ process_header(State, Data) ->
             end;
         {error, closed} ->
             ?ERROR_MSG("Socket closed", [State]),
+            process_data(State, <<"</stream:stream>">>),
             #state{end_of_request = true,
                    request_handlers = State#state.request_handlers};
         {error, timeout} ->

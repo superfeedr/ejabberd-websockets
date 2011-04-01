@@ -388,9 +388,9 @@ validate_request(Data, PayloadSize, MaxStanzaSize) ->
             %% detect stream start and stream end
             case stream_start_end(Data) of
                 {xmlstreamstart, Name, Attrs} ->
-                    {xmlstreamstart, Name, Attrs};
+                    {ok, {xmlstreamstart, Name, Attrs}};
                 {xmlstreamend, End} ->
-                    {xmlstreamend, End};
+                    {ok, {xmlstreamend, End}};
                 _ ->
                     ?ERROR_MSG("Bad xml data: ~p~n", [Reason]),
                     {error, bad_request}
