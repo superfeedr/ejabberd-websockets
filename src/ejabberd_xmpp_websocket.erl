@@ -277,34 +277,10 @@ handle_sync_event(#wsr{out=Payload, socket=WSocket, sockmod=WSockmod},
               fun({xmlstreamend, End}) ->
                       gen_fsm:send_event(
                         C2SPid, {xmlstreamend, End});
+                 ({xmlelement, "stream:stream", Attrs, []}) ->
+                      send_stream_start(C2SPid, Attrs);
                  ({xmlstreamstart, "stream:stream", Attrs}) ->
-                      StreamTo = case lists:keyfind("to", 1, Attrs) of
-                                     {"to", Ato} ->
-                                         case lists:keyfind("version", 
-                                                            1, Attrs) of
-                                             {"version", AVersion} ->
-                                                 {Ato, AVersion};
-                                             _ ->
-                                                 {Ato, ""}
-                                         end
-                                 end,
-                      case StreamTo of
-                          {To, ""} ->
-                              gen_fsm:send_event(
-                                C2SPid,
-                                {xmlstreamstart, "stream:stream",
-                                 [{"to", To},
-                                  {"xmlns", ?NS_CLIENT},
-                                  {"xmlns:stream", ?NS_STREAM}]});
-                          {To, Version} ->
-                              gen_fsm:send_event(
-                                C2SPid,
-                                {xmlstreamstart, "stream:stream",
-                                 [{"to", To},
-                                  {"xmlns", ?NS_CLIENT},
-                                  {"version", Version},
-                                  {"xmlns:stream", ?NS_STREAM}]})
-                      end;
+                      send_stream_start(C2SPid, Attrs);
                  (El) ->
                       gen_fsm:send_event(
                         C2SPid, {xmlstreamelement, El})
@@ -439,9 +415,42 @@ send_text(StateData, Text) ->
     (StateData#state.websocket_sockmod):send(StateData#state.websocket_s,
                                              [0, Text, 255]).
 
+send_element(StateData, {xmlstreamstart, Name, Attrs}) -> 
+    XmlString = streamstart_tobinary({xmlstreamstart, Name, Attrs}),
+    send_text(StateData, XmlString);
+send_element(StateData, {xmlstreamend, "stream:stream"}) ->
+    send_text(StateData, <<"</stream:stream>">>);
 send_element(StateData, El) ->
     send_text(StateData, xml:element_to_binary(El)).
 
+send_stream_start(C2SPid, Attrs) ->
+    StreamTo = case lists:keyfind("to", 1, Attrs) of
+                   {"to", Ato} ->
+                       case lists:keyfind("version", 
+                                          1, Attrs) of
+                           {"version", AVersion} ->
+                               {Ato, AVersion};
+                           _ ->
+                               {Ato, ""}
+                       end
+               end,
+    case StreamTo of
+        {To, ""} ->
+            gen_fsm:send_event(
+              C2SPid,
+              {xmlstreamstart, "stream:stream",
+               [{"to", To},
+                {"xmlns", ?NS_CLIENT},
+                {"xmlns:stream", ?NS_STREAM}]});
+        {To, Version} ->
+            gen_fsm:send_event(
+              C2SPid,
+              {xmlstreamstart, "stream:stream",
+               [{"to", To},
+                {"xmlns", ?NS_CLIENT},
+                {"version", Version},
+                {"xmlns:stream", ?NS_STREAM}]})
+    end.
 %% Cancel timer and empty message queue.
 cancel_timer(undefined) ->
     ok;
@@ -494,6 +503,18 @@ stream_start_end(Data) ->
                     false
             end
     end.
+
+streamstart_tobinary({xmlstreamstart, Name, Attrs}) ->
+    XmlStrListStart = io_lib:format("<~s",[Name]),
+    RestStr = attrs_tostring("", Attrs),
+    list_to_binary([XmlStrListStart,RestStr,">"]).
+attrs_tostring(String,[]) ->
+    String;
+attrs_tostring(Str,[X|Rest]) ->
+    {Name, Value} = X,
+    AttrStr = io_lib:format(" ~s='~s'",[Name, Value]),
+    attrs_tostring([Str,AttrStr], Rest).
+
 %% Tests
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -501,4 +522,9 @@ stream_start_end_test() ->
     false = stream_start_end("stream no xml"),
     {xmlstreamstart, _X, _Y} = stream_start_end("<stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='jabber:client' to='localhost' version='1.0'>"),
     {xmlstreamend, _Z} = stream_start_end("</stream:stream>").
+streamstart_tobinary_test() ->
+    TestStr =     <<"<stream:stream to='localhost' xmlns:stream='http://etherx.jabber.org/streams' xmlns='jabber:client' version='1.0'>">>,
+    io:format("~p~n",[streamstart_tobinary({xmlstreamstart, "stream:stream", [{"to","localhost"}, {"xmlns:stream","http://etherx.jabber.org/streams"}, {"xmlns","jabber:client"}, {"version","1.0"}]})]),
+    io:format("~p~n",[TestStr]),
+    TestStr = streamstart_tobinary({xmlstreamstart, "stream:stream", [{"to","localhost"}, {"xmlns:stream","http://etherx.jabber.org/streams"}, {"xmlns","jabber:client"}, {"version","1.0"}]}).
 -endif.
