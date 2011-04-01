@@ -218,6 +218,9 @@ process_header(State, Data) ->
             ?ERROR_MSG("Socket closed", [State]),
             #state{end_of_request = true,
                    request_handlers = State#state.request_handlers};
+        {error, timeout} ->
+            ?DEBUG("Socket recv timed out. Return the same State.",[]),
+            State;
         {ok, HData} ->
             PData = case State#state.partial of
                         <<>> -> 
