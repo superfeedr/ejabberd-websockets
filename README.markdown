@@ -41,7 +41,7 @@ The most 'urgent' thing to do is to provide fallback mechanisms in this module. 
 
 ## Thank you
 
-[Nathan](http://unclenaynay.com/) for his awesome work, [Jack](http://metajack.im/) for his help. 
+Sponsored by [Superfeedr](http://superfeedr.com). Special thanks to [Nathan](http://unclenaynay.com/) for his awesome work, [Jack](http://metajack.im/) for his help. 
 
 ## License
 
