@@ -7,16 +7,16 @@ It is an implementation of the [XMPP Over Websocket Draft](http://tools.ietf.org
 ## Install
 
 ### Build
-Run ./build.sh
+<code>./build.sh</code>
 
 ### Install
-cp ebin/*.beam /path/to/ejabberd/lib/ebin/
+<code>cp ebin/*.beam /path/to/ejabberd/lib/ebin/</code>
 
 ### Configure
 In the listeners section add the following line:
-		{5288, ejabberd_websocket, [{request_handlers, [{["ws-xmpp"], mod_websocket}]}]},
+<code>{5288, ejabberd_websocket, [{request_handlers, [{["ws-xmpp"], mod_websocket}]}]},</code>
 Make sure you also add this line in the <code>Modules</code>
-		{mod_websocket, []}
+<code>{mod_websocket, []}</code>
 		
 		
 ## Usage
@@ -25,8 +25,11 @@ Just connect to the websocket using your browser's API, and send your XMPP traff
 
 You may find it convenient to use directly [Strophejs](https://github.com/metajack/strophejs) as it's a full XMPP library in Javascript. However, you will have to use [this branch](https://github.com/superfeedr/strophejs) for now, as it adds support for websocket, as the underlying protocol (instead of Bosh).
 
-To setup a connection :
-	    connection = new Strophe.Connection({protocol: new Strophe.Websocket(WS_SERVICE) }); // WS_SERVICE should be http://host.tld:5288/ws-xmpp, based on the configuration you chose.
+To setup a connection :	
+<code>
+	// WS_SERVICE should be http://host.tld:5288/ws-xmpp, based on the configuration you chose.
+	connection = new Strophe.Connection({protocol: new Strophe.Websocket(WS_SERVICE) }); 
+</code>
 
 
 ## TODO
