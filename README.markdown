@@ -45,4 +45,4 @@ The most 'urgent' thing to do is to provide fallback mechanisms in this module. 
 
 ## License
 
-See [License.markdown](./blob/master/License.markdown).
+See [License.markdown](./ejabberd-websockets/blob/master/License.markdown).
