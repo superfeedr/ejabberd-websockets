@@ -14,8 +14,11 @@ It is an implementation of the [XMPP Over Websocket Draft](http://tools.ietf.org
 
 ### Configure
 In the listeners section add the following line:
+
 <code>{5288, ejabberd_websocket, [{request_handlers, [{["ws-xmpp"], mod_websocket}]}]},</code>
+
 Make sure you also add this line in the <code>Modules</code>
+
 <code>{mod_websocket, []}</code>
 		
 		
@@ -42,4 +45,4 @@ The most 'urgent' thing to do is to provide fallback mechanisms in this module. 
 
 ## License
 
-See License.markdown.
+See [License.markdown](./blob/master/License.markdown).
