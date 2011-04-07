@@ -4,6 +4,8 @@ This is a module that adds websocket support for the [ejabberd](http://www.ejabb
 
 It is an implementation of the [XMPP Over Websocket Draft](http://tools.ietf.org/html/draft-moffitt-xmpp-over-websocket-00) proposed by Jack Moffitt and Eric Cstari. The Websocket implementation is based on this [draft specification](http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-03).
 
+**You need to use the apt version of ejabberd, as the binary install comes with an old version of erlang. **
+
 ## Install
 
 ### Build
