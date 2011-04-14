@@ -6,7 +6,7 @@ var StropheDemo = function() {
                 console.log("Logger:"+log);
             };
             console.log("connecting...");
-            connection = new Strophe.Connection("ws://localhost:5288/ws-xmpp");
+            connection = new Strophe.Connection({proto : new Strophe.Websocket("ws://localhost:5288/ws-xmpp")});
             connection.rawInput = function(log) {
                 console.log("RECV:"+log);
             };

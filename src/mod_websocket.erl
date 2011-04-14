@@ -41,6 +41,8 @@ process(Path, Req) ->
                        [] -> <<>>;
                        X when is_list(X) ->
                            list_to_binary(X);
+                       socket_closed ->
+                           build_stream_end();
                        Y ->
                            Y
                    end,
@@ -165,6 +167,9 @@ process_data(DState = #wsdatastate{buffer=Buffer,
         _ ->
             DState#wsdatastate{flen=Len, buffer=Buffer}
     end.
+%% For now only build a legacy stream end packet
+build_stream_end() ->
+    list_to_binary([0,<<"</stream:stream>">>,255]).
 %%
 %% Tests
 %%

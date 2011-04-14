@@ -216,7 +216,7 @@ process_header(State, Data) ->
             end;
         {error, closed} ->
             ?ERROR_MSG("Socket closed", [State]),
-            process_data(State, <<"</stream:stream>">>),
+            process_data(State, socket_closed),
             #state{end_of_request = true,
                    request_handlers = State#state.request_handlers};
         {error, timeout} ->
@@ -324,15 +324,20 @@ process_data(State, Data) ->
                undefined -> ["ws-xmpp"];
                X -> X
            end,
-    {ok, IPHere} =
-        case SockMod of
-            gen_tcp ->
-                inet:peername(Socket);
-            _ ->
-                SockMod:peername(Socket)
-        end,
-    XFF = proplists:get_value('X-Forwarded-For', RequestHeaders, []),
-    IP = analyze_ip_xff(IPHere, XFF, Host),
+    PeerRet = case SockMod of
+                  gen_tcp ->
+                      inet:peername(Socket);
+                  _ ->
+                      SockMod:peername(Socket)
+              end,
+    IP = case PeerRet of 
+             {ok, IPHere} ->
+                 XFF = proplists:get_value('X-Forwarded-For', 
+                                           RequestHeaders, []),
+                 analyze_ip_xff(IPHere, XFF, Host);
+             {error, _Error} ->
+                 undefined
+         end,
     Request = #wsrequest{method = State#state.request_method,
                          path = Path,
                          headers = State#state.request_headers,
