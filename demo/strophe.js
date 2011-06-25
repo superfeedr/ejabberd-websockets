@@ -1633,8 +1633,8 @@ Strophe.TimedHandler.prototype = {
  */
 Strophe.Connection = function (service)
 {
-	if(service.protocol) {
-		this.protocol = service.protocol;
+	if(service.proto) {
+		this.protocol = service.proto;
 	}
 	else {
 		console.log("Warning : this syntax will be deprecated to leave room for othe protocols. Please use new Strophe.Connection({proto : new Strophe.Bosh(BOSH_SERVICE)})" )
@@ -3479,12 +3479,12 @@ Strophe.Websocket.prototype = {
 	 */
 	connect: function(connection) {
 		if(!this.socket) {
-			this.connection 		= connection;
-	        this.socket 			= new WebSocket(this.service, "xmpp");
-		    this.socket.onopen      = this._onOpen.bind(this);
-			this.socket.onerror 	= this._onError.bind(this);
-		    this.socket.onclose 	= this._onClose.bind(this);
-		    this.socket.onmessage 	= this._onMessage.bind(this);
+			this.connection	= connection;
+      this.socket	= new WebSocket(this.service, "xmpp");
+		  this.socket.onopen  = this._onOpen.bind(this);
+			this.socket.onerror = this._onError.bind(this);
+		  this.socket.onclose	= this._onClose.bind(this);
+		  this.socket.onmessage	= this._onMessage.bind(this);
 		}
 	},
 	
@@ -3493,7 +3493,7 @@ Strophe.Websocket.prototype = {
 	 */
 	disconnect: function() {
 		this.connection.xmlOutput(this._endStream());
-        this.connection.rawOutput(this._endStream());
+    this.connection.rawOutput(this._endStream());
 		this.socket.send(this._endStream())
 		this.socket.close(); // Close the socket
 	},
@@ -3539,7 +3539,7 @@ Strophe.Websocket.prototype = {
      */
 	_onOpen: function() {
 		this.connection.xmlOutput(this._startStream());
-        this.connection.rawOutput(this._startStream());
+    this.connection.rawOutput(this._startStream());
 		this.socket.send(this._startStream());
 	},
 	
@@ -3587,6 +3587,4 @@ Strophe.Websocket.prototype = {
 	_endStream:function() {
 		return "</stream:stream>";
 	}
-	
 }
-	
