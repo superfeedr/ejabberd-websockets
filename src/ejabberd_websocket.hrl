@@ -1,7 +1,7 @@
 -record(wsrequest, { headers,
                      data,
                      fsmref = false,
-                     method, 
+                     method,
                      path,
                      wsocket,
                      wsockmod,

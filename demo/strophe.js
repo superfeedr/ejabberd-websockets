@@ -375,7 +375,7 @@ var MD5 = (function () {
  */
 
 /** File: bosh.js
- *  Since JavaScript has no facilities for persistent TCP connections, this 
+ *  Since JavaScript has no facilities for persistent TCP connections, this
  *  library uses Bidirectional-streams Over Synchronous HTTP (BOSH) to emulate
  *  a persistent, stateful, two-way connection to an XMPP server.  More
  *  information on BOSH can be found in XEP 124.
@@ -385,7 +385,7 @@ var MD5 = (function () {
  *	Uses HTML5s websocket as the underlying protocol to allow for fast
  *  communication from the browser to the XMPP server.
  *  It needs an Ejabberd server that is able to deal with Websockets.
- */ 
+ */
 
 /** PrivateFunction: Function.prototype.bind
  *  Bind a function to an instance.
@@ -393,7 +393,7 @@ var MD5 = (function () {
  *  This Function object extension method creates a bound method similar
  *  to those in Python.  This means that the 'this' object will point
  *  to the instance you want.  See
- *  <a href='https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/bind'>MDC's bind() documentation</a> and 
+ *  <a href='https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/bind'>MDC's bind() documentation</a> and
  *  <a href='http://benjamin.smedbergs.us/blog/2007-01-03/bound-functions-and-function-imports-in-javascript/'>Bound Functions and Function Imports in JavaScript</a>
  *  for a complete explanation.
  *
@@ -402,7 +402,7 @@ var MD5 = (function () {
  *
  *  Parameters:
  *    (Object) obj - The object that will become 'this' in the bound function.
- *    (Object) argN - An option argument that will be prepended to the 
+ *    (Object) argN - An option argument that will be prepended to the
  *      arguments given for the function call
  *
  *  Returns:
@@ -415,7 +415,7 @@ if (!Function.prototype.bind) {
         var _slice = Array.prototype.slice;
         var _concat = Array.prototype.concat;
         var _args = _slice.call(arguments, 1);
-        
+
         return function () {
             return func.apply(obj ? obj : this,
                               _concat.call(_args,
@@ -1794,7 +1794,7 @@ Strophe.Connection.prototype = {
 
 		this.protocol.connect(this);
 		this.changeConnectStatus(Strophe.Status.CONNECTING, null);
-		
+
 		// Let's start the throttler.
 		this._throttleStanzas();
     },
@@ -1806,7 +1806,7 @@ Strophe.Connection.prototype = {
        xmlns='jabber:client'
        xmlns:stream='http://etherx.jabber.org/streams'
        version='1.0'>
-	
+
 	 */
 	start: function() {
 		this.send($build('stream:stream', {
@@ -1887,7 +1887,7 @@ Strophe.Connection.prototype = {
     /** Function: send
      *  Send a stanza.
      *
-     *  This function is called to push data to the server through the 
+     *  This function is called to push data to the server through the
 	 *  protocol object.
      *
      *  Parameters:
@@ -1907,7 +1907,7 @@ Strophe.Connection.prototype = {
         } else if (typeof(elem.tree) === "function") {
 			if (this._ensureDOMElement(elem.tree())) {
 				this._stanzas.push(elem.tree());
-				
+
 			}
         } else {
 			if (this._ensureDOMElement(elem)) {
@@ -2113,7 +2113,7 @@ Strophe.Connection.prototype = {
      *  Start the graceful disconnection process.
      *
      *  This function starts the disconnection process.  This process starts
-     *  by sending unavailable presence.  
+     *  by sending unavailable presence.
 	 *  A timeout handler makes sure that disconnection happens.
      *
      *  The user supplied connection callback will be notified of the
@@ -2178,7 +2178,7 @@ Strophe.Connection.prototype = {
     /** PrivateFunction: _doDisconnect
      *  _Private_ function to disconnect.
      *
-     *  This is the last piece of the disconnection logic in the XMPP connection.  
+     *  This is the last piece of the disconnection logic in the XMPP connection.
 	 *  This resets the connection and alerts the user's connection callback.
      */
     _doDisconnect: function ()
@@ -2211,7 +2211,7 @@ Strophe.Connection.prototype = {
 		var do_sasl_plain = false;
 		var do_sasl_digest_md5 = false;
 		var do_sasl_anonymous = false;
-		
+
 	    this.connected = true; // We're connected since we got data
         if (elem === null) { return; }
 
@@ -2262,7 +2262,7 @@ Strophe.Connection.prototype = {
                     do_sasl_anonymous = true;
                 }
             }
-        } 
+        }
 
 
 		if(this.status == Strophe.Status.CONNECTING) {
@@ -2501,10 +2501,10 @@ Strophe.Connection.prototype = {
 
         this._addSysHandler(this._sasl_auth1_cb.bind(this), null, "stream:features", null, null);
 
-		
+
         // we must send an xmpp:restart now
 		this.protocol.restart();
-        
+
         return false;
     },
 
@@ -2739,21 +2739,21 @@ Strophe.Connection.prototype = {
 	/** PrivateFunction: _throttleStanzas
 	*  _Private_ function to throttle stanzas sent to the protocol.
 	*
-	*  Most servers will implement traffic shapers to ensure that a given client does 
+	*  Most servers will implement traffic shapers to ensure that a given client does
 	*  not consume too many resources.
-	*  This function just picks stanza in the _stanzas FIFO and sends them to the 
-	*  protocol layer. The protocol layer may also very well implement a specific 
+	*  This function just picks stanza in the _stanzas FIFO and sends them to the
+	*  protocol layer. The protocol layer may also very well implement a specific
 	*  throttling, based on their needs.
-	* 
-	* 
-	* 
+	*
+	*
+	*
 	*/
 	_throttleStanzas: function () {
 		stanza = this._stanzas.shift();
 		if(stanza) {
 			this.protocol.send(stanza);
 		}
-		this._throttle_stanzas_handler = setTimeout(this._throttleStanzas.bind(this), 1000 * 1/this.max_stanzas_per_second); // 
+		this._throttle_stanzas_handler = setTimeout(this._throttleStanzas.bind(this), 1000 * 1/this.max_stanzas_per_second); //
 	}
 
 };
@@ -2878,10 +2878,10 @@ Strophe.Request.prototype = {
 
 /** Class: Strophe.Bosh
  *  BOSH protocol for underlying XMPP connection.
- * 
+ *
  *  This class is the lower level protocol to communicate with the XMPP server, using BOSH.
  *  It's a simple refactor of the legacy StropheJS code, which used BOSH as well.
- * 
+ *
  *  It can also serve as a 'template' for other underlying protocols, such as XMPP socket (core protocol)
  *  or Websockets.
  */
@@ -2912,17 +2912,17 @@ Strophe.Bosh = function(service)
 
 	// Connection
 	this.connection = null;
-	
+
 	// Requests stack.
-	this._requests = [];    
-	
+	this._requests = [];
+
     this._sendNextRequestTimeout = null;
 	this.connected = false
 	this.disconnecting = false
 };
 
 Strophe.Bosh.prototype = {
-	
+
     /** PrivateConstants: Timeout Values
      *  Timeout values for error states.  These values are in seconds.
      *  These should not be changed unless you know exactly what you are
@@ -2940,44 +2940,44 @@ Strophe.Bosh.prototype = {
     TIMEOUT: 1.1,
     SECONDARY_TIMEOUT: 0.1,
 
-	/** Function connect 
+	/** Function connect
 	 *  Connects to the server using Bosh
 	 */
 	connect: function(connection) {
 		this.connection = connection;
 		this.connected = true
 		this.disconnecting = false
-		
+
 		body = this._buildBody();
 		body.attrs({
-			to: this.connection.domain, 
-			wait: this.wait, 
-			hold: this.hold, 
+			to: this.connection.domain,
+			wait: this.wait,
+			hold: this.hold,
 			content: 'text/xml; charset=utf-8',
 			'xml:lang': 'en',
 			'ver': '1.6',
 			'xmpp:version': '1.0',
 			'xmlns:xmpp': 'urn:xmpp:xbosh'
 		});
-		
+
 		this._requests.push(body);
-		
+
 		// setup _sendNextRequest callback every 1/10th of a second
 		this._sendNextRequestTimeout = setTimeout(this._sendNextRequest.bind(this), 100);
 	},
-	
+
 	/** Function: disconnect
 	 *  Disconnects from the Bosh server
 	 *
-	 */ 
+	 */
 	disconnect: function() {
 		this.disconnecting = true
 		body = this._buildBody();
 		body.attrs({type: "terminate"});
 		this._requests.push(body);
 	},
-	
-	/** Function: send 
+
+	/** Function: send
 	 *  Sends the stanza to the wrapper
 	 *
 	 *  This wraps the stanza into a body element for Bosh.
@@ -2990,7 +2990,7 @@ Strophe.Bosh.prototype = {
 		}
 		this._requests.push(body);
 	},
-	
+
 	/** Function: attach
      *  Attach to an already created and authenticated BOSH session.
      *
@@ -3033,7 +3033,7 @@ Strophe.Bosh.prototype = {
 
         this.changeConnectStatus(Strophe.Status.ATTACHED, null);
     },
-	
+
 	/** PrivateFunction: _buildBody
      *  _Private_ helper function to generate the <body/> wrapper for BOSH.
      *
@@ -3047,7 +3047,7 @@ Strophe.Bosh.prototype = {
 
         return bodyWrap;
     },
-	
+
     /** PrivateFunction: _sendNextRequest
      *  _Private_ handler to process events during idle cycle.
      *
@@ -3062,7 +3062,7 @@ Strophe.Bosh.prototype = {
 		}
 
 		body.attrs({rid: this.rid++}); // Put the rid
-		
+
 		if (this.sid !== null) {
             body.attrs({sid: this.sid});
         }
@@ -3171,7 +3171,7 @@ Strophe.Bosh.prototype = {
         }
     },
 
-	
+
     /** PrivateFunction: _dataRecv
      *  _Private_ handler to processes incoming data from the the connection.
      *
@@ -3188,7 +3188,7 @@ Strophe.Bosh.prototype = {
 	    // reactivate the timer to send the next Request
         clearTimeout(this._sendNextRequestTimeout);
         this._sendNextRequestTimeout = setTimeout(this._sendNextRequest.bind(this), 100);
-    
+
         try {
             var elem = req.getResponse();
         } catch (e) {
@@ -3225,7 +3225,7 @@ Strophe.Bosh.prototype = {
             }
             return;
         }
-		
+
 		// check to make sure we don't overwrite these.
 	    if (!this.sid) {
 			this.sid = elem.getAttribute("sid");
@@ -3233,7 +3233,7 @@ Strophe.Bosh.prototype = {
 		if (!this.stream_id) {
 			this.stream_id = elem.getAttribute("authid");
 		}
-	
+
 		var wind = elem.getAttribute('requests');
 		if (wind) { this.window = parseInt(wind, 10); }
 		var hold = elem.getAttribute('hold');
@@ -3246,10 +3246,10 @@ Strophe.Bosh.prototype = {
         Strophe.forEachChild(elem, null, function (child) {
 			that.connection.receiveData(child);
         });
-   
+
  	},
 
-	
+
 	/** PrivateFunction: _onRequestStateChange
      *  _Private_ handler for Strophe.Request state changes.
      *
@@ -3332,22 +3332,22 @@ Strophe.Bosh.prototype = {
             }
         }
     },
-	
-	
+
+
 	/** Function: restart
      *  Send an xmpp:restart stanza.
      */
     restart: function () {
 		body = this._buildBody();
 		body.attrs({
-			to: this.connection.domain, 
+			to: this.connection.domain,
 			'xml:lang': 'en',
 			'ver': '1.6',
 			'xmpp:version': '1.0',
 			'xmlns:xmpp': 'urn:xmpp:xbosh',
 			'xmpp:restart': true
 		});
-		
+
 		this._requests.push(body);
     },
 
@@ -3384,56 +3384,56 @@ Strophe.Bosh.prototype = {
 		this.sid = null;
 		this.streamId = null;
 		this.rid = Math.floor(Math.random() * 4294967295);
-	},	
+	},
 };
 Strophe.Proto = function(service)
 {
 	// Connection
 	this.connection = null;
 	// Requests stack.
-	this._requests = [];    
+	this._requests = [];
 	this.connected = false
 };
 
 Strophe.Proto.prototype = {
-	
-	/** Function connect 
+
+	/** Function connect
 	 *  Connects to the server using websockets.
 	 *  It also assigns the connection to this proto
 	 */
 	connect: function(connection) {
-		
+
 	},
-	
-	/** Function disconnect 
+
+	/** Function disconnect
 	 *  Disconnects from the server
 	 */
 	disconnect: function() {
-		
+
 	},
 
-	/** Function finish 
+	/** Function finish
 	 *  Finishes the connection
 	 */
 	finish: function() {
-		
+
 	},
-	
-	/** Function send 
+
+	/** Function send
 	 *  Sends messages
 	 */
 	send: function(stanza) {
-		
+
 	},
-	
+
 	/** Function: restart
      *  Send an xmpp:restart stanza.
      */
 	restart: function() {
-		
+
 	}
 }
-	
+
 /*
 	Fucntion to make sure we can ue a DomParser... even in IE
 */
@@ -3467,13 +3467,13 @@ Strophe.Websocket = function(service)
 	this.service	= service;
 
 	// Requests stack.
-	this._requests = [];    
+	this._requests = [];
 	this.connected = false
 };
 
 Strophe.Websocket.prototype = {
-	
-	/** Function connect 
+
+	/** Function connect
 	 *  Connects to the server using websockets.
 	 *  It also assigns the connection to this proto
 	 */
@@ -3487,8 +3487,8 @@ Strophe.Websocket.prototype = {
 		  this.socket.onmessage	= this._onMessage.bind(this);
 		}
 	},
-	
-	/** Function disconnect 
+
+	/** Function disconnect
 	 *  Disconnects from the server
 	 */
 	disconnect: function() {
@@ -3498,14 +3498,14 @@ Strophe.Websocket.prototype = {
 		this.socket.close(); // Close the socket
 	},
 
-	/** Function finish 
+	/** Function finish
 	 *  Finishes the connection. It's the last step in the cleanup process.
 	 */
 	finish: function() {
 		this.socket = null; // Makes sure we delete the socket.
 	},
-	
-	/** Function send 
+
+	/** Function send
 	 *  Sends messages
 	 */
 	send: function(msg) {
@@ -3513,7 +3513,7 @@ Strophe.Websocket.prototype = {
         this.connection.rawOutput(Strophe.serialize(msg));
 		this.socket.send(Strophe.serialize(msg));
 	},
-	
+
 	/** Function: restart
      *  Send an xmpp:restart stanza.
      */
@@ -3522,7 +3522,7 @@ Strophe.Websocket.prototype = {
         this.connection.rawOutput(this._startStream());
 		this.socket.send(this._startStream());
 	},
-	
+
 	/** PrivateFunction: _onError
      *  _Private_ function to handle websockets errors.
      *
@@ -3542,7 +3542,7 @@ Strophe.Websocket.prototype = {
     this.connection.rawOutput(this._startStream());
 		this.socket.send(this._startStream());
 	},
-	
+
 	/** PrivateFunction: _onClose
      *  _Private_ function to handle websockets closing.
      *
@@ -3550,25 +3550,25 @@ Strophe.Websocket.prototype = {
 	_onClose: function(event) {
 		this.connection._doDisconnect()
 	},
-	
+
 	/** PrivateFunction: _onError
      *  _Private_ function to handle websockets messages.
      *
 	 *  This function parses each of the messages as if they are full documents. [TODO : We may actually want to use a SAX Push parser].
-	 *  
+	 *
 	 *  Since all XMPP traffic starts with "<stream:stream version='1.0' xml:lang='en' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' id='3697395463' from='SERVER'>"
 	 *  The first stanza will always fail to be parsed...
 	 *  Addtionnaly, the seconds stanza will always be a <stream:features> with the stream NS defined in the previous stanza... so we need to 'force' the inclusion of the NS in this stanza!
-     * 
+     *
 	 *  Parameters:
      *    (string) message - The websocket message.
      */
 	_onMessage: function(message) {
 		string = message.data.replace("<stream:features>", "<stream:features xmlns:stream='http://etherx.jabber.org/streams'>") // Ugly hack todeal with the problem of stream ns undefined.
-		
+
 		parser = new DOMParser();
 		elem = parser.parseFromString(string, "text/xml").documentElement;
-		
+
 		this.connection.xmlInput(elem);
 		this.connection.rawInput(Strophe.serialize(elem));
 
@@ -3579,11 +3579,11 @@ Strophe.Websocket.prototype = {
 			this.connection.receiveData(elem);
 		}
 	},
-	
+
 	_startStream: function() {
 		return "<stream:stream to='" + this.connection.domain + "' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' />";
 	},
-	
+
 	_endStream:function() {
 		return "</stream:stream>";
 	}

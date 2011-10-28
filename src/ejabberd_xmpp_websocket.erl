@@ -1,7 +1,7 @@
 %%%----------------------------------------------------------------------
 %%% File    : ejabberd_xmpp_websocket.erl
 %%% Author  : Nathan Zorn (nathan.zorn@gmail.com)
-%%% Purpose : Implements XMPP over WebSockets 
+%%% Purpose : Implements XMPP over WebSockets
 %%%----------------------------------------------------------------------
 -module(ejabberd_xmpp_websocket).
 
@@ -127,21 +127,21 @@ process_request(WSockMod, WSock, FsmRef, Data, IP) ->
     case validate_request(Data, PayloadSize, MaxStanzaSize) of
         {ok, ParsedPayload} ->
             case stream_start(ParsedPayload) of
-                {Host, Sid, Key} when (FsmRef =:= false) or 
+                {Host, Sid, Key} when (FsmRef =:= false) or
                                       (FsmRef =:= undefined) ->
                     case start(Host, Sid, Key, IP) of
-                        {ok, Pid} -> 
+                        {ok, Pid} ->
                             ?DEBUG("Session Pid:~p~n",[Pid]),
                             gen_fsm:sync_send_all_state_event(
-                              Pid, 
-                              #wsr{sockmod=WSockMod, 
-                                   socket=WSock, 
+                              Pid,
+                              #wsr{sockmod=WSockMod,
+                                   socket=WSock,
                                    out=[ParsedPayload]}),
                             {<<"session started">>, <<>>, Pid};
-                        S -> 
+                        S ->
                             ?ERROR_MSG("Error starting session:~p~n", [S])
                     end;
-                {_Host, _Sid, _Key} when (FsmRef =/= false) or 
+                {_Host, _Sid, _Key} when (FsmRef =/= false) or
                                          (FsmRef =/= undefined) ->
                     ?DEBUG("Stream restart after c2s started. ~p~n",
                            [FsmRef]),
@@ -162,7 +162,7 @@ process_request(WSockMod, WSock, FsmRef, Data, IP) ->
         _ ->
             ?DEBUG("Bad Request: ~p~n", [Data]),
             {<<"bad request">>, <<>>, FsmRef}
-    end.    
+    end.
 
 %%%----------------------------------------------------------------------
 %%% Callback functions from gen_fsm
@@ -200,7 +200,7 @@ init([Sid, Key, IP]) ->
 %%          {stop, Reason, NewStateData}
 %%----------------------------------------------------------------------
 handle_event({become_controller, C2SPid}, StateName, StateData) ->
-    ?DEBUG("C2SPid:~p~nStateName:~p~nData:~p~n", 
+    ?DEBUG("C2SPid:~p~nStateName:~p~nData:~p~n",
            [C2SPid, StateName, StateData#state.input]),
     case StateData#state.input of
 	cancel ->
@@ -246,10 +246,10 @@ handle_sync_event({send_xml, Packet}, _From, StateName, StateData) ->
     Timer = set_inactivity_timer(StateData#state.pause,
 				 StateData#state.max_inactivity),
     lists:foreach(fun ({xmlstreamstart, Name, Attrs}) ->
-                          send_element(StateData, 
+                          send_element(StateData,
                                        {xmlstreamstart, Name, Attrs});
                       ({xmlstreamend, End}) ->
-                          send_element(StateData, 
+                          send_element(StateData,
                                        {xmlstreamend, End});
                       ({_Name, Element}) ->
                           send_element(StateData, Element)
@@ -261,8 +261,8 @@ handle_sync_event({send_xml, Packet}, _From, StateName, StateData) ->
 		     websocket_receiver = undefined,
 		     wait_timer = undefined,
 		     timer = Timer}};
-%% Handle writing to c2s 
-handle_sync_event(#wsr{out=Payload, socket=WSocket, sockmod=WSockmod}, 
+%% Handle writing to c2s
+handle_sync_event(#wsr{out=Payload, socket=WSocket, sockmod=WSockmod},
                   From, StateName, StateData) ->
     Reply = ok,
     case StateData#state.waiting_input of
@@ -284,7 +284,7 @@ handle_sync_event(#wsr{out=Payload, socket=WSocket, sockmod=WSockmod},
                         C2SPid, {xmlstreamelement, El})
               end, Payload),
             {reply, Reply, StateName,
-             StateData#state{websocket_s=WSocket, 
+             StateData#state{websocket_s=WSocket,
                              websocket_sockmod=WSockmod,
                              websocket_receiver=From}}
     end;
@@ -295,7 +295,7 @@ handle_sync_event({stop,stream_closed}, _From, _StateName, StateData) ->
     Reply = ok,
     {stop, normal, Reply, StateData};
 handle_sync_event({stop, Reason}, _From, _StateName, StateData) ->
-    ?DEBUG("Closing websocket session ~p - Reason: ~p", 
+    ?DEBUG("Closing websocket session ~p - Reason: ~p",
            [StateData#state.id, Reason]),
     Reply = ok,
     {stop, normal, Reply, StateData};
@@ -413,7 +413,7 @@ send_text(StateData, Text) ->
     (StateData#state.websocket_sockmod):send(StateData#state.websocket_s,
                                              [0, Text, 255]).
 
-send_element(StateData, {xmlstreamstart, Name, Attrs}) -> 
+send_element(StateData, {xmlstreamstart, Name, Attrs}) ->
     XmlString = streamstart_tobinary({xmlstreamstart, Name, Attrs}),
     send_text(StateData, XmlString);
 send_element(StateData, {xmlstreamend, "stream:stream"}) ->
@@ -424,7 +424,7 @@ send_element(StateData, El) ->
 send_stream_start(C2SPid, Attrs) ->
     StreamTo = case lists:keyfind("to", 1, Attrs) of
                    {"to", Ato} ->
-                       case lists:keyfind("version", 
+                       case lists:keyfind("version",
                                           1, Attrs) of
                            {"version", AVersion} ->
                                {Ato, AVersion};
@@ -456,7 +456,7 @@ send_data(FsmRef, Req) ->
             ?DEBUG("No session started.",[]);
         _ ->
             ?DEBUG("Writing data!.",[]),
-            %% write data to c2s            
+            %% write data to c2s
             gen_fsm:sync_send_all_state_event(FsmRef, Req)
     end.
 %% Cancel timer and empty message queue.
@@ -484,14 +484,14 @@ stream_start_end(Data) ->
     case re:run(Data, "\<stream\:stream.+\>", []) of
         {match, _X} ->
             %% find to and version
-            To = case re:run(Data, 
+            To = case re:run(Data,
                              "to=[\"']?((?:.(?![\"\']?\\s+(?:\\S+)=|[>\"\']))+.)[\"\']?", [{capture,[1]}]) of
                      {match, [{Start, Finish}]} ->
                          lists:sublist(Data, Start+1, Finish);
                      _ ->
                          undefined
                  end,
-            Version = case re:run(Data, 
+            Version = case re:run(Data,
                             "version=[\"']?((?:.(?![\"\']?\\s+(?:\\S+)=|[>\"\']))+.)[\"\']?", [{capture,[1]}]) of
                           {match, [{St, Fin}]} ->
                               lists:sublist(Data, St+1, Fin);

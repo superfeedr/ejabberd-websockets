@@ -104,7 +104,7 @@ receive_headers(State) ->
                     ?DEBUG("not gen_tcp, ssl? ~p~n", [Binary]),
                     {Request, Trail} = parse_request(
                                          State,
-					 State#state.trail ++ 
+					 State#state.trail ++
                                          binary_to_list(Binary)),
 		    State1 = State#state{trail = Trail},
 		    NewState = lists:foldl(
@@ -202,8 +202,8 @@ process_header(State, Data) ->
                                 _ ->
                                     ?DEBUG("Bad sub protocol",[]),
                                     #state{end_of_request = true,
-                                           request_handlers = State#state.request_handlers} 
-                            end;    
+                                           request_handlers = State#state.request_handlers}
+                            end;
                         _ ->
                             ?DEBUG("Bad Handshake",[]),
                             #state{end_of_request = true,
@@ -224,15 +224,15 @@ process_header(State, Data) ->
             State;
         {ok, HData} ->
             PData = case State#state.partial of
-                        <<>> -> 
+                        <<>> ->
                             HData;
-                        <<X/binary>> -> 
+                        <<X/binary>> ->
                             <<X, HData>>
                     end,
-            {_Out, Partial, Pid} = case process_data(State, PData) of 
-                                       {O, P} -> 
+            {_Out, Partial, Pid} = case process_data(State, PData) of
+                                       {O, P} ->
                                            {O, P, false};
-                                       {Output, Part, ProcId} -> 
+                                       {Output, Part, ProcId} ->
                                            {Output, Part, ProcId};
                                        Error ->
                                            {Error, undefined, undefined}
@@ -242,7 +242,7 @@ process_header(State, Data) ->
                 false ->
                     #state{sockmod = State#state.sockmod,
                            socket = State#state.socket,
-                           partial = Partial,                
+                           partial = Partial,
                            request_handlers = State#state.request_handlers};
                 _ ->
                     #state{sockmod = State#state.sockmod,
@@ -261,7 +261,7 @@ add_header(Name, Value, State) ->
     [{Name, Value} | State#state.request_headers].
 
 is_websocket_upgrade(RequestHeaders) ->
-    Connection = {'Connection', "Upgrade"} == lists:keyfind('Connection', 1, 
+    Connection = {'Connection', "Upgrade"} == lists:keyfind('Connection', 1,
                                                             RequestHeaders),
     Upgrade = {'Upgrade', "WebSocket"} == lists:keyfind('Upgrade', 1,
                                                         RequestHeaders),
@@ -271,28 +271,28 @@ handshake(State) ->
     SockMod = State#state.sockmod,
     Socket = State#state.socket,
     Data = SockMod:recv(Socket, 0, 300000),
-    case Data of 
+    case Data of
         {ok, BinData} ->
             ?DEBUG("Handshake data received.", [State#state.request_headers]),
             {_, Host} = lists:keyfind('Host', 1, State#state.request_headers),
-            {_, Origin} = lists:keyfind("Origin", 
+            {_, Origin} = lists:keyfind("Origin",
                                         1, State#state.request_headers),
             SubProto = sub_protocol(State#state.request_headers),
-            {_, Key1} = lists:keyfind("Sec-Websocket-Key1", 
-                                      1, 
+            {_, Key1} = lists:keyfind("Sec-Websocket-Key1",
+                                      1,
                                       State#state.request_headers),
-            {_, Key2} = lists:keyfind("Sec-Websocket-Key2", 
-                                      1, 
+            {_, Key2} = lists:keyfind("Sec-Websocket-Key2",
+                                      1,
                                       State#state.request_headers),
             case websocket_verify_keys(Key1, Key2) of
                 {Part1, Part2} ->
                     Sig = websocket_sign(Part1, Part2, BinData),
                     %% Build response
-                    Res = build_handshake_response(State#state.socket, 
+                    Res = build_handshake_response(State#state.socket,
                                                    Host,
-                                                   Origin, 
-                                                   State#state.request_path, 
-                                                   SubProto, 
+                                                   Origin,
+                                                   State#state.request_path,
+                                                   SubProto,
                                                    Sig),
                     ?DEBUG("Sending handshake response:~p~n",[Res]),
                     %% send response
@@ -330,9 +330,9 @@ process_data(State, Data) ->
                   _ ->
                       SockMod:peername(Socket)
               end,
-    IP = case PeerRet of 
+    IP = case PeerRet of
              {ok, IPHere} ->
-                 XFF = proplists:get_value('X-Forwarded-For', 
+                 XFF = proplists:get_value('X-Forwarded-For',
                                            RequestHeaders, []),
                  analyze_ip_xff(IPHere, XFF, Host);
              {error, _Error} ->
@@ -361,7 +361,7 @@ process_request(#state{request_method = Method,
             process_request(false);
         {NPath, _Query} ->
             %% Build Request
-            LPath = [path_decode(NPE) || NPE <- string:tokens(NPath, 
+            LPath = [path_decode(NPE) || NPE <- string:tokens(NPath,
                                                               "/")],
             Request = #wsrequest{method = Method,
                                  path = LPath,
@@ -370,7 +370,7 @@ process_request(#state{request_method = Method,
                                  wsockmod = SockMod
                                 },
             ?INFO_MSG("Processing request:~p:~p~n",[Request, State]),
-            process(RequestHandlers, Request)        
+            process(RequestHandlers, Request)
     end;
 process_request(State) ->
     ?DEBUG("Not a handshake: ~p~n", [State]),
@@ -379,19 +379,19 @@ process_request(State) ->
 process([], _) ->
     false;
 process(RequestHandlers, Request) ->
-    [{HandlerPathPrefix, HandlerModule} | HandlersLeft] = RequestHandlers,    
+    [{HandlerPathPrefix, HandlerModule} | HandlersLeft] = RequestHandlers,
     case (lists:prefix(HandlerPathPrefix, Request#wsrequest.path) or
           (HandlerPathPrefix==Request#wsrequest.path)) of
 	true ->
-            ?DEBUG("~p matches ~p", 
+            ?DEBUG("~p matches ~p",
                    [Request#wsrequest.path, HandlerPathPrefix]),
             %% LocalPath is the path "local to the handler", i.e. if
             %% the handler was registered to handle "/test/" and the
             %% requested path is "/test/foo/bar", the local path is
             %% ["foo", "bar"]
-            LocalPath = lists:nthtail(length(HandlerPathPrefix), 
+            LocalPath = lists:nthtail(length(HandlerPathPrefix),
                                       Request#wsrequest.path),
-            HandlerModule:process(LocalPath, Request);            
+            HandlerModule:process(LocalPath, Request);
 	false ->
 	    process(HandlersLeft, Request)
     end.
@@ -416,8 +416,8 @@ websocket_verify_keys(Key1, Key2) ->
     P2 = parse_seckey(Key2),
     websocket_verify_parsed_sec(P1, P2).
 websocket_verify_parsed_sec({N1,S1}, {N2,S2}) ->
-    case N1 > ?MAXKEY_LENGTH orelse 
-        N2 > ?MAXKEY_LENGTH orelse 
+    case N1 > ?MAXKEY_LENGTH orelse
+        N2 > ?MAXKEY_LENGTH orelse
         S1 == 0 orelse
         S2 == 0 of
         true ->
@@ -443,19 +443,19 @@ parse_seckey1("", {NumStr,NumSpaces}) ->
     {list_to_integer(lists:reverse(NumStr)), NumSpaces};
 parse_seckey1([32|T], {Ret,NumSpaces}) -> % ASCII/dec space
     parse_seckey1(T, {Ret, 1+NumSpaces});
-parse_seckey1([N|T],  {Ret,NumSpaces}) when N >= $0, N =< $9 -> 
+parse_seckey1([N|T],  {Ret,NumSpaces}) when N >= $0, N =< $9 ->
     parse_seckey1(T, {[N|Ret], NumSpaces});
-parse_seckey1([_|T], Acc) -> 
+parse_seckey1([_|T], Acc) ->
     parse_seckey1(T, Acc).
 
 %% build the handshake response
 build_handshake_response(Socket, Host, Origin, Path, SubProto, Sig) ->
-    Proto = case Socket of 
-                {ssl,_}   -> "wss://"; 
-                _         -> "ws://" 
+    Proto = case Socket of
+                {ssl,_}   -> "wss://";
+                _         -> "ws://"
             end,
-    SubProtoHeader = case SubProto of 
-                         undefined  -> ""; 
+    SubProtoHeader = case SubProto of
+                         undefined  -> "";
                          P          -> ["Sec-WebSocket-Protocol: ", P, "\r\n"]
                      end,
     {abs_path, APath} = Path,
