@@ -22,12 +22,12 @@
 -include("ejabberd.hrl").
 -include("jlib.hrl").
 -include("ejabberd_websocket.hrl").
--record(wsdatastate, {legacy=true, 
+-record(wsdatastate, {legacy=true,
                       ft=undefined,
                       flen,
                       packet= <<>>,
                       buffer= <<>>,
-                      partial= <<>> 
+                      partial= <<>>
                      }).
 %%%----------------------------------------------------------------------
 %%% API
@@ -47,12 +47,12 @@ process(Path, Req) ->
                            Y
                    end,
             ?DEBUG("Origin is valid.",[]),
-            DState = #wsdatastate {legacy=true, 
+            DState = #wsdatastate {legacy=true,
                                    buffer=Data,
-                                   ft=undefined,                             
+                                   ft=undefined,
                                    partial= <<>> },
             case process_data(DState) of
-                {<<>>, Part} when is_binary(Part) -> 
+                {<<>>, Part} when is_binary(Part) ->
                     {<<>>, Part};
                 {Out, <<>>} when is_binary(Out) ->
                     IP = Req#wsrequest.ip,
@@ -60,8 +60,8 @@ process(Path, Req) ->
                     ejabberd_xmpp_websocket:process_request(
                       Req#wsrequest.wsockmod,
                       Req#wsrequest.wsocket,
-                      Req#wsrequest.fsmref, 
-                      Out, 
+                      Req#wsrequest.fsmref,
+                      Out,
                       IP);
                 Error -> Error  %% pass the errors through
             end;
@@ -97,55 +97,55 @@ validate_origin([]) ->
 validate_origin(Headers) ->
     is_tuple(lists:keyfind("Origin", 1, Headers)).
 
-process_data(DState = #wsdatastate{buffer=undefined}) -> 
+process_data(DState = #wsdatastate{buffer=undefined}) ->
     {DState#wsdatastate.packet, DState#wsdatastate.partial};
-process_data(DState = #wsdatastate{buffer= <<>>}) -> 
+process_data(DState = #wsdatastate{buffer= <<>>}) ->
     {DState#wsdatastate.packet, DState#wsdatastate.partial};
-process_data(DState = #wsdatastate{buffer= <<FrameType:8,Buffer/binary>>, 
+process_data(DState = #wsdatastate{buffer= <<FrameType:8,Buffer/binary>>,
                                    ft=undefined}) ->
     Buffer0 = << <<FrameType>>/binary, Buffer/binary>>,
-    process_data(DState#wsdatastate{buffer=Buffer0, 
-                                    ft=FrameType, 
+    process_data(DState#wsdatastate{buffer=Buffer0,
+                                    ft=FrameType,
                                     partial= <<>>});
 %% "Legacy" frames, 0x00...0xFF
 %% or modern closing handshake 0x00{8}
-process_data(DState = #wsdatastate{buffer= <<0, Buffer/binary>>, 
+process_data(DState = #wsdatastate{buffer= <<0, Buffer/binary>>,
                                    ft=0}) ->
     process_data(DState#wsdatastate{buffer=Buffer, ft=undefined});
 
 process_data(DState = #wsdatastate{buffer= <<255, Rest/binary>>}) ->
     %% message received in full
     #wsdatastate {partial=OPartial} = DState,
-    process_data(DState#wsdatastate{partial= <<>>, 
-                                    packet=OPartial, 
-                                    ft=undefined, 
+    process_data(DState#wsdatastate{partial= <<>>,
+                                    packet=OPartial,
+                                    ft=undefined,
                                     buffer=Rest});
-process_data(DState = #wsdatastate{buffer= <<Byte:8, Rest/binary>>, 
+process_data(DState = #wsdatastate{buffer= <<Byte:8, Rest/binary>>,
                                    ft=0,
                                    partial=Partial}) ->
-    NewPartial = case Partial of 
-                     <<>> -> <<Byte>>; 
-                     _    -> <<Partial/binary, <<Byte>>/binary>> 
+    NewPartial = case Partial of
+                     <<>> -> <<Byte>>;
+                     _    -> <<Partial/binary, <<Byte>>/binary>>
                                  end,
     process_data(DState#wsdatastate{buffer=Rest, partial=NewPartial});
-process_data(DState = #wsdatastate{buffer= <<Byte:8, Rest/binary>>, 
+process_data(DState = #wsdatastate{buffer= <<Byte:8, Rest/binary>>,
                                    legacy=true,
                                    partial=Partial}) ->
 
-    NewPartial = case Partial of 
-                     <<>> -> <<Byte>>; 
-                     _    -> <<Partial/binary, <<Byte>>/binary>> 
+    NewPartial = case Partial of
+                     <<>> -> <<Byte>>;
+                     _    -> <<Partial/binary, <<Byte>>/binary>>
                                  end,
     process_data(DState#wsdatastate{buffer=Rest, partial=NewPartial});
 %% "Modern" frames, starting with 0xFF, followed by 64 bit length
 process_data(DState = #wsdatastate{buffer= <<Len:64/unsigned-integer,
-                                            Buffer/binary>>, 
-                                   ft=255, 
+                                            Buffer/binary>>,
+                                   ft=255,
                                    flen=undefined}) ->
     BitsLen = Len*8,
     case Buffer of
-        <<Frame:BitsLen/binary, Rest/binary>> ->                        
-            process_data(DState#wsdatastate{ft=undefined, 
+        <<Frame:BitsLen/binary, Rest/binary>> ->
+            process_data(DState#wsdatastate{ft=undefined,
                                             flen=undefined,
                                             packet=Frame,
                                             buffer=Rest});
@@ -153,13 +153,13 @@ process_data(DState = #wsdatastate{buffer= <<Len:64/unsigned-integer,
         _ ->
             DState#wsdatastate{flen=Len, buffer=Buffer}
     end;
-process_data(DState = #wsdatastate{buffer=Buffer, 
-                                   ft=255, 
+process_data(DState = #wsdatastate{buffer=Buffer,
+                                   ft=255,
                                    flen=Len}) when is_integer(Len) ->
     BitsLen = Len*8,
     case Buffer of
-        <<Frame:BitsLen/binary, Rest/binary>> ->            
-            process_data(DState#wsdatastate{ft=undefined, 
+        <<Frame:BitsLen/binary, Rest/binary>> ->
+            process_data(DState#wsdatastate{ft=undefined,
                                             flen=undefined,
                                             packet=Frame,
                                             buffer=Rest});
@@ -185,7 +185,7 @@ websocket_process_data_test() ->
                <<0,"something about tests",255>>,
                <<0,"fragment">>],
     FakeState = #wsdatastate{ legacy=true,
-                              ft=undefined,                             
+                              ft=undefined,
                               buffer= <<>>,
                               partial= <<>> },
 

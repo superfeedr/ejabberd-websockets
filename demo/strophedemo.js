@@ -13,7 +13,7 @@ var StropheDemo = function() {
 
       connection.rawInput = function(log) {
         var xml = $($.parseXML(log));
-        
+
         if(xml.find("body").length){
           var from = xml.find("message").attr("from").split("/")[0];
           var msg = xml.find("body").text();
@@ -57,11 +57,11 @@ var StropheDemo = function() {
                                  console.log("Attached");
                                  $('#connstate').html('Attached');
                              }
-                             
+
                              if (status) {
                                 console.log(status);
                              }
-                             
+
                              return true;
                          });
 
@@ -81,7 +81,7 @@ var StropheDemo = function() {
     },
 
     send: function(message, to) {
-      var msg = $msg({to: to, from: connection.jid, type: "chat"}).c("body", {xmlns: Strophe.NS.CLIENT}).t(message); 
+      var msg = $msg({to: to, from: connection.jid, type: "chat"}).c("body", {xmlns: Strophe.NS.CLIENT}).t(message);
       msg.up().c("x", {xmlns: "jabber:x:event"}).c("composing");
       connection.send(msg);
     }

@@ -43,5 +43,5 @@ $(function() {
     $('#buttonSend').click(function(event) {
         WsDemo.send($('#phrase').val());
         $('#phrase').val('');
-    });  
+    });
 });
