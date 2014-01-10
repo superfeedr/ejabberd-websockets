@@ -1,3 +1,6 @@
+> This repo is not maintained and most of the code in here is probably deprecated. 
+
+
 # Websocket Module for Ejabberd
 
 This is a module that adds websocket support for the [ejabberd](http://www.ejabberd.im/) XMPP server. It's a more elegant, modern and faster replacement to Bosh.
